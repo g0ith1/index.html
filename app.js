@@ -27,7 +27,8 @@ const App = {
         document.getElementById('start-shift-form')?.addEventListener('submit', async (e) => {
             e.preventDefault();
             const val = parseFloat(document.getElementById('initial-cash').value || 0);
-            await Cashier.startShift(val);
+            const shiftType = document.getElementById('cashier-shift-type').value;
+            await Cashier.startShift(val, shiftType);
         });
 
         document.getElementById('end-shift-form')?.addEventListener('submit', async (e) => {
@@ -37,12 +38,14 @@ const App = {
 
         document.getElementById('new-emp-form')?.addEventListener('submit', async (e) => {
             e.preventDefault();
-            await Admin.createEmployee(
-                document.getElementById('new-emp-name').value,
-                document.getElementById('new-emp-email').value,
-                document.getElementById('new-emp-username').value,
-                document.getElementById('new-emp-password').value
-            );
+            const editId = document.getElementById('edit-emp-id').value;
+            const name = document.getElementById('new-emp-name').value;
+            const email = document.getElementById('new-emp-email').value || `${document.getElementById('new-emp-username').value}@system.local`;
+            const username = document.getElementById('new-emp-username').value;
+            const pass = document.getElementById('new-emp-password').value;
+            const shiftType = document.getElementById('new-emp-shift-type').value;
+
+            await Admin.saveEmployee(editId, name, email, username, pass, shiftType);
         });
     },
 
@@ -57,4 +60,3 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
-
