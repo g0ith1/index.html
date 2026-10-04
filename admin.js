@@ -7,35 +7,44 @@ const Admin = {
         await this.loadShifts();
     },
 
+    // 1. تحميل إحصائيات النظام
     async loadMetrics() {
-        const { count: empTotal } = await db.from('employees').select('*', { count: 'exact', head: true });
-        const { count: empActive } = await db.from('employees').select('*', { count: 'exact', head: true }).eq('is_active', true);
-        const { count: sOpen } = await db.from('shifts').select('*', { count: 'exact', head: true }).eq('status', 'open');
-        const { count: sClosed } = await db.from('shifts').select('*', { count: 'exact', head: true }).eq('status', 'completed');
-        
-        const { data: salesData } = await db.from('shifts').select('final_expected_total').eq('status', 'completed');
-        const totalRev = salesData ? salesData.reduce((acc, curr) => acc + (parseFloat(curr.final_expected_total) || 0), 0) : 0;
+        try {
+            const { count: empTotal } = await db.from('employees').select('*', { count: 'exact', head: true });
+            const { count: empActive } = await db.from('employees').select('*', { count: 'exact', head: true }).eq('is_active', true);
+            const { count: sOpen } = await db.from('shifts').select('*', { count: 'exact', head: true }).eq('status', 'open');
+            const { count: sClosed } = await db.from('shifts').select('*', { count: 'exact', head: true }).eq('status', 'completed');
+            
+            const { data: salesData } = await db.from('shifts').select('final_expected_total').eq('status', 'completed');
+            const totalRev = salesData ? salesData.reduce((acc, curr) => acc + (parseFloat(curr.final_expected_total) || 0), 0) : 0;
 
-        if (document.getElementById('m-emp-total')) document.getElementById('m-emp-total').textContent = empTotal || 0;
-        if (document.getElementById('m-emp-active')) document.getElementById('m-emp-active').textContent = empActive || 0;
-        if (document.getElementById('m-shifts-open')) document.getElementById('m-shifts-open').textContent = sOpen || 0;
-        if (document.getElementById('m-shifts-closed')) document.getElementById('m-shifts-closed').textContent = sClosed || 0;
-        if (document.getElementById('m-sales-total')) document.getElementById('m-sales-total').textContent = `$${totalRev.toFixed(2)}`;
+            if (document.getElementById('m-emp-total')) document.getElementById('m-emp-total').textContent = empTotal || 0;
+            if (document.getElementById('m-emp-active')) document.getElementById('m-emp-active').textContent = empActive || 0;
+            if (document.getElementById('m-shifts-open')) document.getElementById('m-shifts-open').textContent = sOpen || 0;
+            if (document.getElementById('m-shifts-closed')) document.getElementById('m-shifts-closed').textContent = sClosed || 0;
+            if (document.getElementById('m-sales-total')) document.getElementById('m-sales-total').textContent = `$${totalRev.toFixed(2)}`;
+        } catch (e) {
+            console.error("Error loading metrics:", e);
+        }
     },
 
+    // 2. تحميل وعرض الموظفين
     async loadEmployees() {
-        const { data } = await db.from('employees').select('*').order('created_at', { ascending: false });
-        const tbody = document.getElementById('employees-table-body');
-        if (tbody) tbody.innerHTML = '';
+        try {
+            const { data, error } = await db.from('employees').select('*').order('created_at', { ascending: false });
+            if (error) throw error;
 
-        data?.forEach(emp => {
-            if (tbody) {
+            const tbody = document.getElementById('employees-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            data?.forEach(emp => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${emp.full_name}</td>
-                    <td>${emp.username}</td>
-                    <td><span class="badge">${emp.is_active ? 'نشط' : 'معطل'}</span></td>
-                    <td>${emp.role}</td>
+                    <td>${emp.full_name || '-'}</td>
+                    <td>${emp.username || '-'}</td>
+                    <td><span class="badge ${emp.is_active ? 'badge-success' : 'badge-danger'}">${emp.is_active ? 'نشط' : 'معطل'}</span></td>
+                    <td>${emp.role || 'employee'}</td>
                     <td>${emp.shift_type || 'صباحي'}</td>
                     <td>
                         <button class="btn btn-sm ${emp.is_active ? 'btn-secondary' : 'btn-success'}" 
@@ -46,38 +55,124 @@ const Admin = {
                     </td>
                 `;
                 tbody.appendChild(tr);
-            }
-        });
-    },
-
-    async toggleEmpStatus(id, newStatus) {
-        await db.from('employees').update({ is_active: newStatus }).eq('id', id);
-        App.showToast("تم تحديث حالة الموظف");
-        await this.loadEmployees();
-    },
-
-    async deleteEmployee(id) {
-        if (!confirm("هل أنت متأكد من حذف الموظف؟")) return;
-        const { error } = await db.from('employees').delete().eq('id', id);
-        if (error) alert("لا يمكن حذف الموظف لوجود شفتات مرتبطة بحسابه.");
-        else {
-            App.showToast("تم حذف الموظف بنجاح");
-            await this.loadEmployees();
+            });
+        } catch (e) {
+            console.error("Error loading employees:", e);
         }
     },
 
-    async loadShifts() {
-        const { data } = await db.from('shifts').select('*, employees(full_name)').order('created_at', { ascending: false });
-        this.allShifts = data || [];
-        this.renderShifts(this.allShifts);
+    // 3. إضافة أو حفظ موظف جديد
+    async saveEmployee(id, fullName, email, username, password, shiftType) {
+        try {
+            const cleanUsername = username ? username.trim().toLowerCase() : '';
+            
+            if (!cleanUsername || !fullName) {
+                alert("يرجى إدخال اسم الموظف واسم المستخدم بشكل صحيح");
+                return;
+            }
+
+            if (id) {
+                // تعديل بيانات موظف حالي
+                const { error } = await db.from('employees').update({
+                    full_name: fullName,
+                    username: cleanUsername,
+                    shift_type: shiftType
+                }).eq('id', id);
+
+                if (error) throw error;
+                App.showToast("تم تعديل بيانات الموظف بنجاح");
+            } else {
+                // إضافة موظف جديد
+                if (!password || password.length < 6) {
+                    alert("كلمة المرور يجب أن لا تقل عن 6 أحرف");
+                    return;
+                }
+
+                const userEmail = `${cleanUsername}@app.local`;
+
+                // إنشاء الحساب في Supabase Auth
+                const { data: authData, error: authErr } = await db.auth.signUp({
+                    email: userEmail,
+                    password: password
+                });
+
+                if (authErr) throw new Error("خطأ في إنشاء الحساب: " + authErr.message);
+                if (!authData.user) throw new Error("لم يتم إرجاع المعرف الخاص بالمستخدم");
+
+                // إدراج بيانات الموظف بجدول employees
+                const { error: empErr } = await db.from('employees').insert({
+                    id: authData.user.id,
+                    username: cleanUsername,
+                    full_name: fullName,
+                    role: 'employee',
+                    shift_type: shiftType || 'صباحي',
+                    is_active: true
+                });
+
+                if (empErr) throw new Error("خطأ أثناء حفظ الموظف بجدول البيانات: " + empErr.message);
+
+                App.showToast("تم إنشاء حساب الموظف بنجاح!");
+            }
+
+            if (typeof this.closeEmpModal === 'function') this.closeEmpModal();
+            await this.loadEmployees();
+            await this.loadMetrics();
+
+        } catch (err) {
+            console.error("Save Employee Error:", err);
+            alert(err.message || "حدث خطأ أثناء حفظ الموظف");
+        }
     },
 
+    // 4. تغيير حالة الموظف (تفعيل / تعطيل)
+    async toggleEmpStatus(id, newStatus) {
+        try {
+            await db.from('employees').update({ is_active: newStatus }).eq('id', id);
+            App.showToast("تم تحديث حالة الموظف");
+            await this.loadEmployees();
+            await this.loadMetrics();
+        } catch (e) {
+            alert("حدث خطأ أثناء تغيير حالة الموظف");
+        }
+    },
+
+    // 5. حذف موظف
+    async deleteEmployee(id) {
+        if (!confirm("هل أنت متأكد من حذف هذا الموظف؟")) return;
+        try {
+            const { error } = await db.from('employees').delete().eq('id', id);
+            if (error) {
+                alert("لا يمكن حذف الموظف لوجود شفتات سجّلها باسمه.");
+            } else {
+                App.showToast("تم حذف الموظف بنجاح");
+                await this.loadEmployees();
+                await this.loadMetrics();
+            }
+        } catch (e) {
+            alert("حدث خطأ أثناء الحذف");
+        }
+    },
+
+    // 6. تحميل الشفتات
+    async loadShifts() {
+        try {
+            const { data, error } = await db.from('shifts').select('*, employees(full_name)').order('created_at', { ascending: false });
+            if (error) throw error;
+            this.allShifts = data || [];
+            this.renderShifts(this.allShifts);
+        } catch (e) {
+            console.error("Error loading shifts:", e);
+        }
+    },
+
+    // 7. عرض جدول الشفتات
     renderShifts(shifts) {
         const tbody = document.getElementById('shifts-table-body');
         if (!tbody) return;
         tbody.innerHTML = '';
 
         shifts.forEach(s => {
+            const sales = (s.sold_transactions_total || 0) + (s.misc_sold_total || 0);
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${s.employees?.full_name || 'غير معروف'}</td>
@@ -85,7 +180,7 @@ const Admin = {
                 <td>${new Date(s.start_time).toLocaleString('ar-IQ')}</td>
                 <td>${s.end_time ? new Date(s.end_time).toLocaleString('ar-IQ') : 'مفتوح'}</td>
                 <td>$${parseFloat(s.initial_cash || 0).toFixed(2)}</td>
-                <td>$${parseFloat((s.sold_transactions_total || 0) + (s.misc_sold_total || 0)).toFixed(2)}</td>
+                <td>$${parseFloat(sales).toFixed(2)}</td>
                 <td>$${parseFloat(s.final_expected_total || 0).toFixed(2)}</td>
                 <td>${s.status === 'open' ? 'مفتوح' : 'منتهي'}</td>
                 <td>
@@ -98,6 +193,7 @@ const Admin = {
         });
     },
 
+    // 8. طباعة فاتورة شفت محدد بواسطة المدير
     printSingleShift(shiftId) {
         const s = this.allShifts.find(x => x.id === shiftId);
         if (!s) return;
@@ -137,6 +233,7 @@ const Admin = {
         printWindow.document.close();
     },
 
+    // 9. تعديل مبالغ الشفت بواسطة المدير
     async editShiftPrompt(shiftId) {
         const s = this.allShifts.find(x => x.id === shiftId);
         if (!s) return;
@@ -164,12 +261,13 @@ const Admin = {
         if (error) {
             alert("حدث خطأ أثناء التعديل: " + error.message);
         } else {
-            App.showToast("تم تعديل الشفت بنجاح");
+            App.showToast("تم تعديل بيانات الشفت بنجاح");
             await this.loadShifts();
             await this.loadMetrics();
         }
     },
 
+    // 10. حذف الشفت بواسطة المدير
     async deleteShift(shiftId) {
         if (!confirm("هل أنت متأكد من حذف هذا الشفت نهائياً؟")) return;
 
