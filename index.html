@@ -5,16 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة التحكم - إدارة الموظفين والشفتات</title>
     <link rel="stylesheet" href="style.css">
-    <!-- مكتبة Supabase -->
+    <!-- فحص الحماية وتسجيل الدخول قبل تحميل الصفحة -->
+    <script>
+        const session = localStorage.getItem('admin_session');
+        if (!session) {
+            window.location.href = 'login.html';
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
     <div class="app-container">
-        <header class="main-header">
+        <header class="main-header" style="display: flex; justify-content: space-between; align-items: center;">
             <h1>لوحة تحكم النظام</h1>
             <div class="user-info">
-                <span>مرحباً، المدير</span>
+                <span id="admin-name">مرحباً، المدير</span>
+                <button onclick="logoutAdmin()" class="btn btn-secondary" style="margin-right: 10px;">تسجيل خروج</button>
             </div>
         </header>
 
@@ -127,9 +134,8 @@
         </div>
     </div>
 
-    <!-- استدعاء السكريبتات بترتيب صحيح -->
-    <script src="db.js?v=300"></script>
-    <script src="admin.js?v=300"></script>
+    <script src="db.js?v=400"></script>
+    <script src="admin.js?v=400"></script>
     <script>
         function openModal() {
             document.getElementById('inp-fullname').value = '';
@@ -142,7 +148,16 @@
             document.getElementById('emp-modal').style.display = 'none';
         }
 
+        function logoutAdmin() {
+            localStorage.removeItem('admin_session');
+            window.location.href = 'login.html';
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            const adminData = JSON.parse(localStorage.getItem('admin_session') || '{}');
+            if (adminData.full_name) {
+                document.getElementById('admin-name').textContent = 'مرحباً، ' + adminData.full_name;
+            }
             if (typeof Admin !== 'undefined') Admin.init();
         });
     </script>
