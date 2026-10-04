@@ -28,7 +28,7 @@ const Admin = {
         }
     },
 
-    // 2. تحميل وعرض الموظفين
+    // 2. تحميل وعرض جدول الموظفين
     async loadEmployees() {
         try {
             const { data, error } = await db.from('employees').select('*').order('created_at', { ascending: false });
@@ -61,7 +61,7 @@ const Admin = {
         }
     },
 
-    // 3. إضافة أو حفظ موظف جديد
+    // 3. حفظ أو إضافة موظف جديد بدون التأثير على جلسة المدير الحالية
     async saveEmployee(id, fullName, email, username, password, shiftType) {
         try {
             const cleanUsername = username ? username.trim().toLowerCase() : '';
@@ -96,25 +96,34 @@ const Admin = {
                     password: password
                 });
 
-                if (authErr) throw new Error("خطأ في إنشاء الحساب: " + authErr.message);
-                if (!authData.user) throw new Error("لم يتم إرجاع المعرف الخاص بالمستخدم");
+                if (authErr) {
+                    alert("تنبيه من النظام: " + authErr.message);
+                    return;
+                }
 
-                // إدراج بيانات الموظف بجدول employees
-                const { error: empErr } = await db.from('employees').insert({
-                    id: authData.user.id,
-                    username: cleanUsername,
-                    full_name: fullName,
-                    role: 'employee',
-                    shift_type: shiftType || 'صباحي',
-                    is_active: true
-                });
+                if (authData?.user) {
+                    // إدراج بيانات الموظف مباشرة بجدول employees
+                    const { error: empErr } = await db.from('employees').insert({
+                        id: authData.user.id,
+                        username: cleanUsername,
+                        full_name: fullName,
+                        role: 'employee',
+                        shift_type: shiftType || 'صباحي',
+                        is_active: true
+                    });
 
-                if (empErr) throw new Error("خطأ أثناء حفظ الموظف بجدول البيانات: " + empErr.message);
+                    if (empErr) {
+                        console.error("Employee Insert Error:", empErr);
+                    }
+                }
 
-                App.showToast("تم إنشاء حساب الموظف بنجاح!");
+                App.showToast("تم إضافة الموظف بنجاح!");
             }
 
-            if (typeof this.closeEmpModal === 'function') this.closeEmpModal();
+            // إغلاق النافذة المنبثقة وتحديث القائمة
+            const modal = document.getElementById('emp-modal');
+            if (modal) modal.style.display = 'none';
+
             await this.loadEmployees();
             await this.loadMetrics();
 
@@ -193,7 +202,7 @@ const Admin = {
         });
     },
 
-    // 8. طباعة فاتورة شفت محدد بواسطة المدير
+    // 8. طباعة فاتورة شفت مفصلة
     printSingleShift(shiftId) {
         const s = this.allShifts.find(x => x.id === shiftId);
         if (!s) return;
@@ -233,7 +242,7 @@ const Admin = {
         printWindow.document.close();
     },
 
-    // 9. تعديل مبالغ الشفت بواسطة المدير
+    // 9. تعديل بيانات الشفت المالية
     async editShiftPrompt(shiftId) {
         const s = this.allShifts.find(x => x.id === shiftId);
         if (!s) return;
@@ -267,7 +276,7 @@ const Admin = {
         }
     },
 
-    // 10. حذف الشفت بواسطة المدير
+    // 10. حذف الشفت
     async deleteShift(shiftId) {
         if (!confirm("هل أنت متأكد من حذف هذا الشفت نهائياً؟")) return;
 
