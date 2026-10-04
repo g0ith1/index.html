@@ -51,6 +51,13 @@
                 <h3>بدء شفت جديد</h3>
                 <form id="start-shift-form">
                     <div class="form-group">
+                        <label>وقت الشفت</label>
+                        <select id="cashier-shift-type" required>
+                            <option value="صباحي">صباحي</option>
+                            <option value="مسائي">مسائي</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>الإيراد الابتدائي ($)</label>
                         <input type="number" step="0.01" id="initial-cash" required placeholder="0.00">
                     </div>
@@ -106,7 +113,7 @@
                         <h4>الملخص النهائي للصندوق</h4>
                         <div class="summary-item"><span>الإيراد الابتدائي + التغذية:</span> $<span id="sum-base">0.00</span></div>
                         <div class="summary-item"><span>إجمالي المبيعات (عادي + متفرق):</span> $<span id="sum-sales">0.00</span></div>
-                        <div class="summary-item highlight"><span>المبلغ المتوقع النهائي في الصندوق:</span> $<span id="sum-final">0.00</span></div>
+                        <div class="summary-item highlight"><span>النقد المتوقع نهاية الشفت:</span> $<span id="sum-final">0.00</span></div>
                     </div>
 
                     <button type="submit" class="btn btn-danger btn-block">تأكيد وإنهاء الشفت</button>
@@ -131,8 +138,8 @@
                 <button class="nav-btn active" onclick="Admin.showTab('dash')">الرئيسية</button>
                 <button class="nav-btn" onclick="Admin.showTab('employees')">الموظفون</button>
                 <button class="nav-btn" onclick="Admin.showTab('shifts')">الشفتات</button>
-                <button class="nav-btn" onclick="Admin.showTab('reports')">التقارير والطباعة</button>
-                <button class="nav-btn" onclick="Admin.showTab('backup')">النسخ الاحتياطي</button>
+                <button class="nav-btn" onclick="Admin.showTab('reports')">التقارير والتصدير</button>
+                <button class="nav-btn" onclick="Admin.showTab('backup')">النسخ والاستعادة</button>
             </aside>
 
             <main class="admin-content">
@@ -155,10 +162,10 @@
                         <thead>
                             <tr>
                                 <th>الاسم</th>
-                                <th>Username/Email</th>
+                                <th>اسم المستخدم</th>
                                 <th>الحالة</th>
                                 <th>الدور</th>
-                                <th>تاريخ الإنشاء</th>
+                                <th>وقت الشفت</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
@@ -167,15 +174,20 @@
                 </div>
 
                 <div id="tab-shifts" class="tab-content">
+                    <div class="search-bar" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                        <input type="text" id="shift-search-input" placeholder="ابحث باسم الموظف..." oninput="Admin.filterShifts()">
+                        <input type="date" id="shift-date-input" onchange="Admin.filterShifts()">
+                    </div>
                     <table class="data-table">
                         <thead>
                             <tr>
                                 <th>الموظف</th>
+                                <th>وقت الشفت</th>
                                 <th>البداية</th>
                                 <th>النهاية</th>
                                 <th>الإيراد الابتدائي</th>
                                 <th>المبيعات</th>
-                                <th>المبلغ النهائي</th>
+                                <th>المبلغ النهائي المتوقع</th>
                                 <th>الحالة</th>
                             </tr>
                         </thead>
@@ -185,35 +197,54 @@
 
                 <div id="tab-reports" class="tab-content">
                     <div class="tab-header">
-                        <h3>تقارير المطابقة المالية</h3>
-                        <button class="btn btn-outline btn-sm" onclick="window.print()">طباعة التقرير (A4)</button>
+                        <h3>تصدير تقرير الموظف حسب التاريخ</h3>
                     </div>
-                    <div id="printable-report" class="printable-area">
-                        <h4>تقرير الشفتات المكتملة</h4>
+                    <div class="filter-box" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.5rem; margin-bottom: 1rem;">
+                        <div><label>اختر الموظف:</label><select id="report-emp-select"></select></div>
+                        <div><label>من تاريخ:</label><input type="date" id="report-start-date"></div>
+                        <div><label>إلى تاريخ:</label><input type="date" id="report-end-date"></div>
+                        <div style="display:flex; align-items:flex-end;"><button class="btn btn-primary btn-block" onclick="Admin.generateFilteredReport()">عرض التقرير</button></div>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="window.print()">طباعة / تصدير PDF</button>
+                    <div id="printable-report" class="printable-area" style="margin-top: 1rem;">
                         <div id="report-summary-content"></div>
                     </div>
                 </div>
 
                 <div id="tab-backup" class="tab-content">
-                    <h3>إدارة النسخ الاحتياطي للأمان</h3>
-                    <button class="btn btn-success" onclick="Admin.exportBackup()">تصدير نسخة احتياطية (JSON)</button>
+                    <h3>صلاحيات النسخ الاحتياطي والاستعادة</h3>
+                    <div style="margin-top: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="Admin.exportBackup()">تصدير نسخة احتياطية (JSON)</button>
+                        <label class="btn btn-outline" style="cursor: pointer;">
+                            استعادة نسخة احتياطية 📥
+                            <input type="file" id="backup-file-input" accept=".json" class="hidden" onchange="Admin.importBackup(event)">
+                        </label>
+                    </div>
                 </div>
             </main>
         </div>
         <footer class="app-footer">07710621453</footer>
     </section>
 
-    <!-- Modal موظف جديد -->
+    <!-- Modal موظف -->
     <div id="emp-modal" class="modal hidden">
         <div class="modal-content">
             <span class="close-btn" onclick="Admin.closeEmpModal()">&times;</span>
-            <h3>إنشاء موظف جديد</h3>
+            <h3 id="emp-modal-title">إنشاء موظف جديد</h3>
             <form id="new-emp-form">
+                <input type="hidden" id="edit-emp-id">
                 <div class="form-group"><label>الاسم الكامل</label><input type="text" id="new-emp-name" required></div>
-                <div class="form-group"><label>البريد الإلكتروني</label><input type="email" id="new-emp-email" required></div>
+                <div class="form-group"><label>البريد الإلكتروني (إن وجد)</label><input type="email" id="new-emp-email"></div>
                 <div class="form-group"><label>اسم المستخدم</label><input type="text" id="new-emp-username" required></div>
-                <div class="form-group"><label>كلمة المرور</label><input type="password" id="new-emp-password" required minlength="6"></div>
-                <button type="submit" class="btn btn-primary btn-block">إنشاء حساب الموظف</button>
+                <div class="form-group"><label>كلمة المرور</label><input type="password" id="new-emp-password" minlength="6"></div>
+                <div class="form-group">
+                    <label>وقت الشفت المعتاد</label>
+                    <select id="new-emp-shift-type" required>
+                        <option value="صباحي">صباحي</option>
+                        <option value="مسائي">مسائي</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">حفظ البيانات</button>
             </form>
         </div>
     </div>
@@ -225,4 +256,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
