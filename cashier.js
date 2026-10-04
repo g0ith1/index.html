@@ -88,8 +88,6 @@ const Cashier = {
 
         const baseTotal = initial + replenishment;
         const totalSales = soldCountTotal + miscSoldTotal;
-        
-        // المعادلة الجديدة: (الابتدائي + المعزز) - إجمالي المعاملات المباعة
         const finalExpected = baseTotal - totalSales;
 
         document.getElementById('sum-base').textContent = baseTotal.toFixed(2);
@@ -111,7 +109,7 @@ const Cashier = {
     },
 
     async closeShift() {
-        if (!confirm("هل أنت تأكد من إنهاء الشفت؟ لا يمكنك التعديل بعد الإغلاق.")) return;
+        if (!confirm("هل أنت تأكد من إنهاء الشفت؟")) return;
 
         const shiftId = this.currentShift.id;
         const soldCount = parseInt(document.getElementById('sold-count').value || 0);
@@ -126,9 +124,17 @@ const Cashier = {
 
         const base = parseFloat(this.currentShift.initial_cash) + parseFloat(document.getElementById('box-replenishment').value || 0);
         const totalSales = soldTotal + miscSoldTotal;
-        
-        // النقد المتوقع النهائي
         const finalTotal = base - totalSales;
+
+        const shiftSummary = {
+            cashier: Auth.userProfile.full_name,
+            shiftType: this.currentShift.shift_type || 'صباحي',
+            initial: this.currentShift.initial_cash,
+            replenishment: parseFloat(document.getElementById('box-replenishment').value || 0),
+            sales: totalSales,
+            final: finalTotal,
+            date: new Date().toLocaleString('ar-IQ')
+        };
 
         const { error } = await db.from('shifts').update({
             status: 'completed',
@@ -145,12 +151,49 @@ const Cashier = {
         }).eq('id', shiftId);
 
         if (error) {
-            console.error("Shift close error:", error);
             alert("حدث خطأ أثناء حفظ الشفت: " + error.message);
             throw error;
         }
 
         App.showToast("تم إغلاق الشفت وحفظ البيانات بنجاح");
+        
+        // فتح نافذة الطباعة مباشرة للكاشير
+        this.printShiftReceipt(shiftSummary);
+
         await this.checkActiveShift();
+    },
+
+    printShiftReceipt(summary) {
+        const printWindow = window.open('', '_blank', 'width=600,height=600');
+        printWindow.document.write(`
+            <html dir="rtl">
+            <head>
+                <title>تقرير إغلاق الشفت</title>
+                <style>
+                    body { font-family: sans-serif; padding: 20px; text-align: center; }
+                    .card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; }
+                    .row { display: flex; justify-content: space-between; margin: 8px 0; border-bottom: 1px dashed #eee; padding-bottom: 4px; }
+                    .total { font-weight: bold; font-size: 1.2em; color: #000; margin-top: 15px; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>إيصال إغلاق الشفت</h2>
+                    <div class="row"><span>الموظف:</span> <strong>${summary.cashier}</strong></div>
+                    <div class="row"><span>نوع الشفت:</span> <strong>${summary.shiftType}</strong></div>
+                    <div class="row"><span>التاريخ:</span> <strong>${summary.date}</strong></div>
+                    <hr>
+                    <div class="row"><span>المبلغ الابتدائي:</span> <strong>$${parseFloat(summary.initial).toFixed(2)}</strong></div>
+                    <div class="row"><span>المبلغ المعزز:</span> <strong>$${parseFloat(summary.replenishment).toFixed(2)}</strong></div>
+                    <div class="row"><span>إجمالي المبيعات:</span> <strong>$${parseFloat(summary.sales).toFixed(2)}</strong></div>
+                    <div class="row total"><span>النقد المتوقع النهاية:</span> <strong>$${parseFloat(summary.final).toFixed(2)}</strong></div>
+                </div>
+                <script>
+                    window.onload = function() { window.print(); window.close(); }
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
     }
 };
