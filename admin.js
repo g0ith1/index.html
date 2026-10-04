@@ -61,7 +61,7 @@ const Admin = {
         }
     },
 
-    // 3. إضافة أو حفظ موظف باستخدام دالة SQL المجهزة
+    // 3. إضافة أو حفظ موظف جديد
     async saveEmployee(id, fullName, email, username, password, shiftType) {
         try {
             const cleanUsername = username ? username.trim().toLowerCase() : '';
@@ -72,7 +72,7 @@ const Admin = {
             }
 
             if (id) {
-                // تعديل بيانات موظف حالي
+                // تعديل موظف حالي
                 const { error } = await db.from('employees').update({
                     full_name: fullName,
                     username: cleanUsername,
@@ -80,9 +80,9 @@ const Admin = {
                 }).eq('id', id);
 
                 if (error) throw error;
-                App.showToast("تم تعديل بيانات الموظف بنجاح");
+                if (typeof App !== 'undefined' && App.showToast) App.showToast("تم تعديل البيانات بنجاح");
             } else {
-                // إضافة موظف جديد باستخدام دالة RPC
+                // إضافة موظف جديد
                 if (!password || password.length < 6) {
                     alert("كلمة المرور يجب أن لا تقل عن 6 أحرف");
                     return;
@@ -96,23 +96,23 @@ const Admin = {
                 });
 
                 if (error) {
-                    console.error("RPC Error:", error);
-                    alert("خطأ أثناء الإنشاء: " + error.message);
+                    alert("خطأ أثناء الإضافة: " + error.message);
                     return;
                 }
 
                 if (data && data.success === false) {
-                    alert("لم تتم الإضافة: " + (data.error || "خطأ غير معروف"));
+                    alert("تنبيه: " + (data.error || "تعذر إضافة الموظف"));
                     return;
                 }
 
-                App.showToast("تم إضافة الموظف بنجاح!");
+                alert("تم إضافة الموظف بنجاح!");
             }
 
-            // إغلاق النافذة المنبثقة وتحديث البيانات
-            const modal = document.getElementById('emp-modal');
-            if (modal) modal.style.display = 'none';
+            // إغلاق أي نافذة منبثقة مفتوحة بطريقة آمنة
+            const modals = document.querySelectorAll('.modal, #emp-modal, #employee-modal');
+            modals.forEach(m => m.style.display = 'none');
 
+            // تحديث البيانات والقائمة فوراً
             await this.loadEmployees();
             await this.loadMetrics();
 
@@ -126,7 +126,6 @@ const Admin = {
     async toggleEmpStatus(id, newStatus) {
         try {
             await db.from('employees').update({ is_active: newStatus }).eq('id', id);
-            App.showToast("تم تحديث حالة الموظف");
             await this.loadEmployees();
             await this.loadMetrics();
         } catch (e) {
@@ -142,7 +141,6 @@ const Admin = {
             if (error) {
                 alert("لا يمكن حذف الموظف لوجود شفتات سجّلها باسمه.");
             } else {
-                App.showToast("تم حذف الموظف بنجاح");
                 await this.loadEmployees();
                 await this.loadMetrics();
             }
@@ -259,7 +257,6 @@ const Admin = {
         if (error) {
             alert("حدث خطأ أثناء التعديل: " + error.message);
         } else {
-            App.showToast("تم تعديل بيانات الشفت بنجاح");
             await this.loadShifts();
             await this.loadMetrics();
         }
@@ -274,7 +271,6 @@ const Admin = {
         if (error) {
             alert("حدث خطأ أثناء الحذف: " + error.message);
         } else {
-            App.showToast("تم حذف الشفت بنجاح");
             await this.loadShifts();
             await this.loadMetrics();
         }
