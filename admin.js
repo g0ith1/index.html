@@ -10,7 +10,7 @@ const Admin = {
     showTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(`tab-${tabId}`).classList.add('active');
+        document.getElementById(`tab-${tabId}`)?.classList.add('active');
     },
 
     async loadMetrics() {
@@ -34,7 +34,7 @@ const Admin = {
         const tbody = document.getElementById('employees-table-body');
         const empSelect = document.getElementById('report-emp-select');
         
-        tbody.innerHTML = '';
+        if (tbody) tbody.innerHTML = '';
         if (empSelect) empSelect.innerHTML = '<option value="">كل الموظفين</option>';
 
         data?.forEach(emp => {
@@ -42,23 +42,25 @@ const Admin = {
                 empSelect.innerHTML += `<option value="${emp.id}">${emp.full_name}</option>`;
             }
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${emp.full_name}</td>
-                <td>${emp.username}</td>
-                <td><span class="badge">${emp.is_active ? 'نشط' : 'معطل'}</span></td>
-                <td>${emp.role}</td>
-                <td>${emp.shift_type || 'صباحي'}</td>
-                <td>
-                    <button class="btn btn-sm ${emp.is_active ? 'btn-secondary' : 'btn-success'}" 
-                        onclick="Admin.toggleEmpStatus('${emp.id}', ${!emp.is_active})">
-                        ${emp.is_active ? 'تعطيل' : 'تفعيل'}
-                    </button>
-                    <button class="btn btn-sm btn-outline" onclick="Admin.openEditEmpModal('${emp.id}', '${emp.full_name}', '${emp.username}', '${emp.shift_type || 'صباحي'}')">تعديل</button>
-                    <button class="btn btn-sm btn-danger" onclick="Admin.deleteEmployee('${emp.id}')">حذف</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
+            if (tbody) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${emp.full_name}</td>
+                    <td>${emp.username}</td>
+                    <td><span class="badge">${emp.is_active ? 'نشط' : 'معطل'}</span></td>
+                    <td>${emp.role}</td>
+                    <td>${emp.shift_type || 'صباحي'}</td>
+                    <td>
+                        <button class="btn btn-sm ${emp.is_active ? 'btn-secondary' : 'btn-success'}" 
+                            onclick="Admin.toggleEmpStatus('${emp.id}', ${!emp.is_active})">
+                            ${emp.is_active ? 'تعطيل' : 'تفعيل'}
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="Admin.openEditEmpModal('${emp.id}', '${emp.full_name}', '${emp.username}', '${emp.shift_type || 'صباحي'}')">تعديل</button>
+                        <button class="btn btn-sm btn-danger" onclick="Admin.deleteEmployee('${emp.id}')">حذف</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
         });
     },
 
@@ -72,7 +74,7 @@ const Admin = {
         if (!confirm("هل أنت تأكد من حذف الموظف نهائياً؟")) return;
         const { error } = await db.from('employees').delete().eq('id', id);
         if (error) {
-            alert("لا يمكن حذف الموظف لوجود شفتات مرتبطة بحسابه، يمكن تعطيله فقط.");
+            alert("لا يمكن حذف الموظف لوجود شفتات مرتبطة بحسابه، يمكنك تعطيله بدلاً من ذلك.");
         } else {
             App.showToast("تم حذف الموظف بنجاح");
             await this.loadEmployees();
@@ -99,13 +101,11 @@ const Admin = {
 
     async saveEmployee(id, fullName, email, username, password, shiftType) {
         if (id) {
-            // تعديل موظف حالي
             const updateObj = { full_name: fullName, username, shift_type: shiftType };
             const { error } = await db.from('employees').update(updateObj).eq('id', id);
             if (error) throw error;
             App.showToast("تم تعديل بيانات الموظف");
         } else {
-            // إنشاء جديد
             const { data: authData, error: authErr } = await db.auth.signUp({ email, password });
             if (authErr) throw authErr;
 
@@ -132,6 +132,7 @@ const Admin = {
 
     renderShifts(shifts) {
         const tbody = document.getElementById('shifts-table-body');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         shifts.forEach(s => {
@@ -145,9 +146,85 @@ const Admin = {
                 <td>$${parseFloat((s.sold_transactions_total || 0) + (s.misc_sold_total || 0)).toFixed(2)}</td>
                 <td>$${parseFloat(s.final_expected_total || 0).toFixed(2)}</td>
                 <td>${s.status === 'open' ? 'مفتوح' : 'منتهي'}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline" onclick="Admin.printSingleShift('${s.id}')">🖨️ طباعة</button>
+                    <button class="btn btn-sm btn-secondary" onclick="Admin.editShiftPrompt('${s.id}', ${s.initial_cash}, ${s.final_expected_total})">✏️ تعديل</button>
+                    <button class="btn btn-sm btn-danger" onclick="Admin.deleteShift('${s.id}')">🗑️ حذف</button>
+                </td>
             `;
             tbody.appendChild(tr);
         });
+    },
+
+    printSingleShift(shiftId) {
+        const s = this.allShifts.find(x => x.id === shiftId);
+        if (!s) return;
+
+        const sales = (s.sold_transactions_total || 0) + (s.misc_sold_total || 0);
+        const printWindow = window.open('', '_blank', 'width=600,height=600');
+        printWindow.document.write(`
+            <html dir="rtl">
+            <head>
+                <title>طباعة الشفت - ${s.employees?.full_name}</title>
+                <style>
+                    body { font-family: sans-serif; padding: 20px; text-align: center; }
+                    .card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; }
+                    .row { display: flex; justify-content: space-between; margin: 8px 0; border-bottom: 1px dashed #eee; padding-bottom: 4px; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>تقرير شفت مفصل</h2>
+                    <div class="row"><span>الموظف:</span> <strong>${s.employees?.full_name || '-'}</strong></div>
+                    <div class="row"><span>نوع الشفت:</span> <strong>${s.shift_type || 'صباحي'}</strong></div>
+                    <div class="row"><span>تاريخ البداية:</span> <strong>${new Date(s.start_time).toLocaleString('ar-IQ')}</strong></div>
+                    <div class="row"><span>تاريخ النهاية:</span> <strong>${s.end_time ? new Date(s.end_time).toLocaleString('ar-IQ') : 'مفتوح'}</strong></div>
+                    <hr>
+                    <div class="row"><span>الإيراد الابتدائي:</span> <strong>$${parseFloat(s.initial_cash || 0).toFixed(2)}</strong></div>
+                    <div class="row"><span>المبلغ المعزز:</span> <strong>$${parseFloat(s.box_replenishment || 0).toFixed(2)}</strong></div>
+                    <div class="row"><span>إجمالي المبيعات:</span> <strong>$${sales.toFixed(2)}</strong></div>
+                    <div class="row" style="font-weight:bold; font-size:1.1em;"><span>النقد المتوقع النهاية:</span> <strong>$${parseFloat(s.final_expected_total || 0).toFixed(2)}</strong></div>
+                </div>
+                <script>
+                    window.onload = function() { window.print(); window.close(); }
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    },
+
+    async editShiftPrompt(shiftId, currentInitial, currentFinal) {
+        const newInitial = prompt("تعديل المبلغ الابتدائي ($):", currentInitial);
+        if (newInitial === null) return;
+
+        const newFinal = prompt("تعديل النقد المتوقع النهائي ($):", currentFinal);
+        if (newFinal === null) return;
+
+        const { error } = await db.from('shifts').update({
+            initial_cash: parseFloat(newInitial || 0),
+            final_expected_total: parseFloat(newFinal || 0)
+        }).eq('id', shiftId);
+
+        if (error) {
+            alert("حدث خطأ أثناء التعديل: " + error.message);
+        } else {
+            App.showToast("تم تعديل الشفت بنجاح");
+            await this.loadShifts();
+        }
+    },
+
+    async deleteShift(shiftId) {
+        if (!confirm("هل أنت تأكد من حذف هذا الشفت نهائياً؟")) return;
+
+        const { error } = await db.from('shifts').delete().eq('id', shiftId);
+
+        if (error) {
+            alert("حدث خطأ أثناء الحذف: " + error.message);
+        } else {
+            App.showToast("تم حذف الشفت بنجاح");
+            await this.loadShifts();
+        }
     },
 
     filterShifts() {
@@ -240,3 +317,4 @@ const Admin = {
         reader.readAsText(file);
     }
 };
+                      
