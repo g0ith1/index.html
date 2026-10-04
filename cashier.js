@@ -88,17 +88,20 @@ const Cashier = {
 
         const baseTotal = initial + replenishment;
         const totalSales = soldCountTotal + miscSoldTotal;
-        const finalExpected = baseTotal + totalSales;
+        
+        // المعادلة الجديدة: (الابتدائي + المعزز) - إجمالي المعاملات المباعة
+        const finalExpected = baseTotal - totalSales;
 
         document.getElementById('sum-base').textContent = baseTotal.toFixed(2);
         document.getElementById('sum-sales').textContent = totalSales.toFixed(2);
         document.getElementById('sum-final').textContent = finalExpected.toFixed(2);
     },
 
-    async startShift(initialCash) {
+    async startShift(initialCash, shiftType) {
         const { data, error } = await db.from('shifts').insert({
             employee_id: Auth.currentUser.id,
             initial_cash: initialCash,
+            shift_type: shiftType || 'صباحي',
             status: 'open'
         }).select().single();
 
@@ -122,7 +125,10 @@ const Cashier = {
         document.querySelectorAll('.m-unsold-price').forEach(i => miscUnsoldTotal += parseFloat(i.value || 0));
 
         const base = parseFloat(this.currentShift.initial_cash) + parseFloat(document.getElementById('box-replenishment').value || 0);
-        const finalTotal = base + soldTotal + miscSoldTotal;
+        const totalSales = soldTotal + miscSoldTotal;
+        
+        // النقد المتوقع النهائي
+        const finalTotal = base - totalSales;
 
         const { error } = await db.from('shifts').update({
             status: 'completed',
@@ -135,13 +141,16 @@ const Cashier = {
             unsold_transactions_total: unsoldC * 2000,
             misc_unsold_total: miscUnsoldTotal,
             final_expected_total: finalTotal,
-            notes: document.getElementById('shift-notes').value
+            notes: document.getElementById('shift-notes').value || ''
         }).eq('id', shiftId);
 
-        if (error) throw error;
+        if (error) {
+            console.error("Shift close error:", error);
+            alert("حدث خطأ أثناء حفظ الشفت: " + error.message);
+            throw error;
+        }
 
         App.showToast("تم إغلاق الشفت وحفظ البيانات بنجاح");
         await this.checkActiveShift();
     }
 };
-          
