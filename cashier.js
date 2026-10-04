@@ -35,38 +35,6 @@ const Cashier = {
         });
     },
 
-    addMiscSoldRow() {
-        const div = document.createElement('div');
-        div.className = 'dynamic-row';
-        div.innerHTML = `
-            <input type="text" placeholder="اسم المعاملة" class="m-sold-name" required>
-            <input type="number" step="0.01" placeholder="السعر $" class="m-sold-price" required oninput="Cashier.calculateTotals()">
-            <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); Cashier.calculateTotals();">✕</button>
-        `;
-        document.getElementById('misc-sold-container').appendChild(div);
-    },
-
-    addUnsoldTxRow() {
-        const div = document.createElement('div');
-        div.className = 'dynamic-row';
-        div.innerHTML = `
-            <input type="text" placeholder="اسم المعاملة غير المباعة" class="u-tx-name" required>
-            <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>
-        `;
-        document.getElementById('unsold-tx-container').appendChild(div);
-    },
-
-    addMiscUnsoldRow() {
-        const div = document.createElement('div');
-        div.className = 'dynamic-row';
-        div.innerHTML = `
-            <input type="text" placeholder="اسم العنصر" class="m-unsold-name" required>
-            <input type="number" step="0.01" placeholder="السعر $" class="m-unsold-price" required oninput="Cashier.calculateTotals()">
-            <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); Cashier.calculateTotals();">✕</button>
-        `;
-        document.getElementById('misc-unsold-container').appendChild(div);
-    },
-
     calculateTotals() {
         const initial = parseFloat(this.currentShift?.initial_cash || 0);
         const replenishment = parseFloat(document.getElementById('box-replenishment').value || 0);
@@ -95,21 +63,8 @@ const Cashier = {
         document.getElementById('sum-final').textContent = finalExpected.toFixed(2);
     },
 
-    async startShift(initialCash, shiftType) {
-        const { data, error } = await db.from('shifts').insert({
-            employee_id: Auth.currentUser.id,
-            initial_cash: initialCash,
-            shift_type: shiftType || 'صباحي',
-            status: 'open'
-        }).select().single();
-
-        if (error) throw error;
-        App.showToast("تم فتح الشفت بنجاح");
-        await this.checkActiveShift();
-    },
-
     async closeShift() {
-        if (!confirm("هل أنت تأكد من إنهاء الشفت؟")) return;
+        if (!confirm("هل أنت متأكد من إنهاء الشفت؟")) return;
 
         const shiftId = this.currentShift.id;
         const soldCount = parseInt(document.getElementById('sold-count').value || 0);
@@ -122,7 +77,8 @@ const Cashier = {
         let miscUnsoldTotal = 0;
         document.querySelectorAll('.m-unsold-price').forEach(i => miscUnsoldTotal += parseFloat(i.value || 0));
 
-        const base = parseFloat(this.currentShift.initial_cash) + parseFloat(document.getElementById('box-replenishment').value || 0);
+        const replenishment = parseFloat(document.getElementById('box-replenishment').value || 0);
+        const base = parseFloat(this.currentShift.initial_cash) + replenishment;
         const totalSales = soldTotal + miscSoldTotal;
         const finalTotal = base - totalSales;
 
@@ -130,7 +86,7 @@ const Cashier = {
             cashier: Auth.userProfile.full_name,
             shiftType: this.currentShift.shift_type || 'صباحي',
             initial: this.currentShift.initial_cash,
-            replenishment: parseFloat(document.getElementById('box-replenishment').value || 0),
+            replenishment: replenishment,
             sales: totalSales,
             final: finalTotal,
             date: new Date().toLocaleString('ar-IQ')
@@ -139,7 +95,7 @@ const Cashier = {
         const { error } = await db.from('shifts').update({
             status: 'completed',
             end_time: new Date().toISOString(),
-            box_replenishment: parseFloat(document.getElementById('box-replenishment').value || 0),
+            box_replenishment: replenishment,
             sold_transactions_count: soldCount,
             sold_transactions_total: soldTotal,
             misc_sold_total: miscSoldTotal,
@@ -147,7 +103,7 @@ const Cashier = {
             unsold_transactions_total: unsoldC * 2000,
             misc_unsold_total: miscUnsoldTotal,
             final_expected_total: finalTotal,
-            notes: document.getElementById('shift-notes').value || ''
+            notes: document.getElementById('shift-notes')?.value || ''
         }).eq('id', shiftId);
 
         if (error) {
@@ -157,7 +113,7 @@ const Cashier = {
 
         App.showToast("تم إغلاق الشفت وحفظ البيانات بنجاح");
         
-        // فتح نافذة الطباعة مباشرة للكاشير
+        // فتح نافذة الطباعة مباشرة
         this.printShiftReceipt(shiftSummary);
 
         await this.checkActiveShift();
@@ -186,7 +142,7 @@ const Cashier = {
                     <div class="row"><span>المبلغ الابتدائي:</span> <strong>$${parseFloat(summary.initial).toFixed(2)}</strong></div>
                     <div class="row"><span>المبلغ المعزز:</span> <strong>$${parseFloat(summary.replenishment).toFixed(2)}</strong></div>
                     <div class="row"><span>إجمالي المبيعات:</span> <strong>$${parseFloat(summary.sales).toFixed(2)}</strong></div>
-                    <div class="row total"><span>النقد المتوقع النهاية:</span> <strong>$${parseFloat(summary.final).toFixed(2)}</strong></div>
+                    <div class="row total"><span>النقد المتوقع النهائي:</span> <strong>$${parseFloat(summary.final).toFixed(2)}</strong></div>
                 </div>
                 <script>
                     window.onload = function() { window.print(); window.close(); }
