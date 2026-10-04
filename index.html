@@ -3,256 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام مطابقة الصناديق</title>
+    <title>لوحة التحكم - إدارة الموظفين والشفتات</title>
     <link rel="stylesheet" href="style.css">
+    <!-- مكتبة Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-    <div id="toast-container"></div>
-
-    <!-- 1. صفحة تسجيل الدخول -->
-    <section id="login-section" class="view-section active">
-        <div class="login-card">
-            <div class="brand-header">
-                <h2>نظام مطابقة الصناديق</h2>
-                <p>تسجيل الدخول للنظام المالي</p>
-            </div>
-            <form id="login-form">
-                <div class="form-group">
-                    <label>البريد الإلكتروني / اسم المستخدم</label>
-                    <input type="text" id="login-identifier" required placeholder="أدخل البريد أو اسم المستخدم">
-                </div>
-                <div class="form-group">
-                    <label>كلمة المرور</label>
-                    <input type="password" id="login-password" required placeholder="••••••••">
-                </div>
-                <button type="submit" id="login-btn" class="btn btn-primary btn-block">
-                    <span class="btn-text">تسجيل الدخول</span>
-                </button>
-            </form>
-            <div id="login-error" class="alert alert-danger hidden"></div>
-            <div class="footer-contact">07710621453</div>
-        </div>
-    </section>
-
-    <!-- 2. واجهة الكاشير -->
-    <section id="cashier-section" class="view-section hidden">
-        <header class="app-header">
+    <div class="app-container">
+        <header class="main-header">
+            <h1>لوحة تحكم النظام</h1>
             <div class="user-info">
-                <span>أهلاً، <strong id="cashier-name">...</strong></span>
-                <span class="badge" id="cashier-status-badge">شفت مغلق</span>
+                <span>مرحباً، المدير</span>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="Auth.logout()">تسجيل الخروج</button>
         </header>
 
-        <main class="container">
-            <div id="start-shift-card" class="card">
-                <h3>بدء شفت جديد</h3>
-                <form id="start-shift-form">
-                    <div class="form-group">
-                        <label>وقت الشفت</label>
-                        <select id="cashier-shift-type" required>
-                            <option value="صباحي">صباحي</option>
-                            <option value="مسائي">مسائي</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>الإيراد الابتدائي ($)</label>
-                        <input type="number" step="0.01" id="initial-cash" required placeholder="0.00">
-                    </div>
-                    <button type="submit" class="btn btn-success btn-block">حفظ وبدء الشفت</button>
-                </form>
+        <!-- كروت الإحصائيات -->
+        <section class="metrics-grid">
+            <div class="card metric-card">
+                <h3>إجمالي الموظفين</h3>
+                <p id="m-emp-total">0</p>
             </div>
-
-            <div id="end-shift-card" class="card hidden">
-                <h3>إنهاء الشفت الحالي</h3>
-                <form id="end-shift-form">
-                    <div class="form-group">
-                        <label>المبلغ المعزز للصندوق ($)</label>
-                        <input type="number" step="0.01" id="box-replenishment" value="0.00" required>
-                    </div>
-
-                    <hr>
-                    <h4>المعاملات المباعة</h4>
-                    <div class="form-group">
-                        <label>عدد المعاملات المباعة (سعر المعاملة $2,000)</label>
-                        <input type="number" id="sold-count" value="0" min="0">
-                        <small>الإجمالي التلقائي: $<span id="sold-count-total">0.00</span></small>
-                    </div>
-
-                    <h5>المعاملات المتفرقة المباعة</h5>
-                    <div id="misc-sold-container"></div>
-                    <button type="button" class="btn btn-outline btn-sm" onclick="Cashier.addMiscSoldRow()">+ إضافة متفرقة</button>
-                    <div class="total-indicator">مجموع المتفرقات المباعة: $<span id="misc-sold-total">0.00</span></div>
-
-                    <hr>
-                    <h4>المعاملات غير المباعة</h4>
-                    <div class="form-group">
-                        <label>عدد المعاملات غير المباعة ($2,000/معاملة)</label>
-                        <input type="number" id="unsold-count" value="0" min="0">
-                        <small>القيمة: $<span id="unsold-count-total">0.00</span></small>
-                    </div>
-
-                    <h5>تفاصيل المعاملات غير المباعة</h5>
-                    <div id="unsold-tx-container"></div>
-                    <button type="button" class="btn btn-outline btn-sm" onclick="Cashier.addUnsoldTxRow()">+ إضافة تفاصيل غير مباعة</button>
-
-                    <h5>المتفرقات غير المباعة</h5>
-                    <div id="misc-unsold-container"></div>
-                    <button type="button" class="btn btn-outline btn-sm" onclick="Cashier.addMiscUnsoldRow()">+ إضافة عنصر غير مباع</button>
-                    <div class="total-indicator">مجموع المتفرقات غير المباعة: $<span id="misc-unsold-total">0.00</span></div>
-
-                    <hr>
-                    <div class="form-group">
-                        <label>الملاحظات</label>
-                        <textarea id="shift-notes" rows="3" placeholder="أدخل أي ملاحظات إضافية..."></textarea>
-                    </div>
-
-                    <div class="summary-box">
-                        <h4>الملخص النهائي للصندوق</h4>
-                        <div class="summary-item"><span>الإيراد الابتدائي + التغذية:</span> $<span id="sum-base">0.00</span></div>
-                        <div class="summary-item"><span>إجمالي المبيعات (عادي + متفرق):</span> $<span id="sum-sales">0.00</span></div>
-                        <div class="summary-item highlight"><span>النقد المتوقع نهاية الشفت:</span> $<span id="sum-final">0.00</span></div>
-                    </div>
-
-                    <button type="submit" class="btn btn-danger btn-block">تأكيد وإنهاء الشفت</button>
-                </form>
+            <div class="card metric-card">
+                <h3>الموظفين النشطين</h3>
+                <p id="m-emp-active">0</p>
             </div>
-        </main>
-        <footer class="app-footer">07710621453</footer>
-    </section>
-
-    <!-- 3. لوحة تحكم المدير Admin -->
-    <section id="admin-section" class="view-section hidden">
-        <header class="app-header">
-            <div>
-                <h2>لوحة تحكم المدير</h2>
-                <small>نظام مطابقة الصناديق</small>
+            <div class="card metric-card">
+                <h3>الشفتات المفتوحة</h3>
+                <p id="m-shifts-open">0</p>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="Auth.logout()">تسجيل الخروج</button>
-        </header>
+            <div class="card metric-card">
+                <h3>الشفتات المغلقة</h3>
+                <p id="m-shifts-closed">0</p>
+            </div>
+            <div class="card metric-card">
+                <h3>إجمالي المبيعات</h3>
+                <p id="m-sales-total">$0.00</p>
+            </div>
+        </section>
 
-        <div class="admin-layout">
-            <aside class="sidebar">
-                <button class="nav-btn active" onclick="Admin.showTab('dash')">الرئيسية</button>
-                <button class="nav-btn" onclick="Admin.showTab('employees')">الموظفون</button>
-                <button class="nav-btn" onclick="Admin.showTab('shifts')">الشفتات</button>
-                <button class="nav-btn" onclick="Admin.showTab('reports')">التقارير والتصدير</button>
-                <button class="nav-btn" onclick="Admin.showTab('backup')">النسخ والاستعادة</button>
-            </aside>
+        <!-- قسم الموظفين -->
+        <section class="content-section">
+            <div class="section-header">
+                <h2>إدارة الموظفين</h2>
+                <button type="button" class="btn btn-primary" onclick="openModal()">+ إضافة موظف جديد</button>
+            </div>
+            <div class="table-container card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الاسم الكامل</th>
+                            <th>اسم المستخدم</th>
+                            <th>الحالة</th>
+                            <th>الدور</th>
+                            <th>نوع الشفت</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employees-table-body"></tbody>
+                </table>
+            </div>
+        </section>
 
-            <main class="admin-content">
-                <div id="tab-dash" class="tab-content active">
-                    <div class="metrics-grid">
-                        <div class="metric-card"><h4>إجمالي الموظفين</h4><p id="m-emp-total">0</p></div>
-                        <div class="metric-card"><h4>الموظفون النشطون</h4><p id="m-emp-active">0</p></div>
-                        <div class="metric-card"><h4>الشفتات المفتوحة</h4><p id="m-shifts-open">0</p></div>
-                        <div class="metric-card"><h4>الشفتات المنتهية</h4><p id="m-shifts-closed">0</p></div>
-                        <div class="metric-card"><h4>إجمالي المبيعات</h4><p id="m-sales-total">$0.00</p></div>
-                    </div>
-                </div>
+        <!-- قسم الشفتات -->
+        <section class="content-section">
+            <div class="section-header">
+                <h2>سجل الشفتات</h2>
+            </div>
+            <div class="table-container card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الموظف</th>
+                            <th>نوع الشفت</th>
+                            <th>وقت البداية</th>
+                            <th>وقت النهاية</th>
+                            <th>الرصيد الافتتاحي</th>
+                            <th>المبيعات</th>
+                            <th>الرصيد المتوقع</th>
+                            <th>حالة الشفت</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shifts-table-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
 
-                <div id="tab-employees" class="tab-content">
-                    <div class="tab-header">
-                        <h3>إدارة الموظفين</h3>
-                        <button class="btn btn-primary btn-sm" onclick="Admin.openNewEmpModal()">+ موظف جديد</button>
-                    </div>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>الاسم</th>
-                                <th>اسم المستخدم</th>
-                                <th>الحالة</th>
-                                <th>الدور</th>
-                                <th>وقت الشفت</th>
-                                <th>الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody id="employees-table-body"></tbody>
-                    </table>
-                </div>
-
-                <div id="tab-shifts" class="tab-content">
-                    <div class="search-bar" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                        <input type="text" id="shift-search-input" placeholder="ابحث باسم الموظف..." oninput="Admin.filterShifts()">
-                        <input type="date" id="shift-date-input" onchange="Admin.filterShifts()">
-                    </div>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>الموظف</th>
-                                <th>وقت الشفت</th>
-                                <th>البداية</th>
-                                <th>النهاية</th>
-                                <th>الإيراد الابتدائي</th>
-                                <th>المبيعات</th>
-                                <th>المبلغ النهائي المتوقع</th>
-                                <th>الحالة</th>
-                            </tr>
-                        </thead>
-                        <tbody id="shifts-table-body"></tbody>
-                    </table>
-                </div>
-
-                <div id="tab-reports" class="tab-content">
-                    <div class="tab-header">
-                        <h3>تصدير تقرير الموظف حسب التاريخ</h3>
-                    </div>
-                    <div class="filter-box" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.5rem; margin-bottom: 1rem;">
-                        <div><label>اختر الموظف:</label><select id="report-emp-select"></select></div>
-                        <div><label>من تاريخ:</label><input type="date" id="report-start-date"></div>
-                        <div><label>إلى تاريخ:</label><input type="date" id="report-end-date"></div>
-                        <div style="display:flex; align-items:flex-end;"><button class="btn btn-primary btn-block" onclick="Admin.generateFilteredReport()">عرض التقرير</button></div>
-                    </div>
-                    <button class="btn btn-outline btn-sm" onclick="window.print()">طباعة / تصدير PDF</button>
-                    <div id="printable-report" class="printable-area" style="margin-top: 1rem;">
-                        <div id="report-summary-content"></div>
-                    </div>
-                </div>
-
-                <div id="tab-backup" class="tab-content">
-                    <h3>صلاحيات النسخ الاحتياطي والاستعادة</h3>
-                    <div style="margin-top: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
-                        <button class="btn btn-success" onclick="Admin.exportBackup()">تصدير نسخة احتياطية (JSON)</button>
-                        <label class="btn btn-outline" style="cursor: pointer;">
-                            استعادة نسخة احتياطية 📥
-                            <input type="file" id="backup-file-input" accept=".json" class="hidden" onchange="Admin.importBackup(event)">
-                        </label>
-                    </div>
-                </div>
-            </main>
-        </div>
-        <footer class="app-footer">07710621453</footer>
-    </section>
-
-    <!-- Modal موظف -->
-    <div id="emp-modal" class="modal hidden">
-        <div class="modal-content">
-            <span class="close-btn" onclick="Admin.closeEmpModal()">&times;</span>
-            <h3 id="emp-modal-title">إنشاء موظف جديد</h3>
-            <form id="new-emp-form">
-                <input type="hidden" id="edit-emp-id">
-                <div class="form-group"><label>الاسم الكامل</label><input type="text" id="new-emp-name" required></div>
-                <div class="form-group"><label>البريد الإلكتروني (إن وجد)</label><input type="email" id="new-emp-email"></div>
-                <div class="form-group"><label>اسم المستخدم</label><input type="text" id="new-emp-username" required></div>
-                <div class="form-group"><label>كلمة المرور</label><input type="password" id="new-emp-password" minlength="6"></div>
+    <!-- نافذة إضافة موظف -->
+    <div id="emp-modal" class="modal" style="display: none;">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h3>إضافة موظف جديد</h3>
+                <span class="close-btn" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
                 <div class="form-group">
-                    <label>وقت الشفت المعتاد</label>
-                    <select id="new-emp-shift-type" required>
+                    <label>الاسم الكامل:</label>
+                    <input type="text" id="inp-fullname" placeholder="أحمد علي">
+                </div>
+                <div class="form-group">
+                    <label>اسم المستخدم:</label>
+                    <input type="text" id="inp-username" placeholder="ahmed123">
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور:</label>
+                    <input type="password" id="inp-password" placeholder="6 أحرف أو أكثر">
+                </div>
+                <div class="form-group">
+                    <label>نوع الشفت:</label>
+                    <select id="inp-shifttype">
                         <option value="صباحي">صباحي</option>
                         <option value="مسائي">مسائي</option>
+                        <option value="ليلي">ليلي</option>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">حفظ البيانات</button>
-            </form>
+                <div class="modal-actions" style="margin-top: 15px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+                    <button type="button" class="btn btn-primary" onclick="Admin.addNewEmpDirect()">حفظ الموظف</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script src="supabaseClient.js"></script>
-    <script src="auth.js"></script>
-    <script src="cashier.js"></script>
-    <script src="admin.js"></script>
-    <script src="app.js"></script>
+    <!-- ربط الملفات مع إلغاء التخزين المؤقت v=99 -->
+    <script src="db.js?v=99"></script>
+    <script src="admin.js?v=99"></script>
+    <script>
+        function openModal() {
+            document.getElementById('inp-fullname').value = '';
+            document.getElementById('inp-username').value = '';
+            document.getElementById('inp-password').value = '';
+            document.getElementById('emp-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('emp-modal').style.display = 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof Admin !== 'undefined') Admin.init();
+        });
+    </script>
 </body>
 </html>
