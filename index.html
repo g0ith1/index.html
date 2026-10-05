@@ -1,1 +1,877 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام مطابقة الصناديق</title><style>
+    * {
+        box-sizing: border-box;
+        font-family: Arial, Tahoma, sans-serif;
+    }
 
+    body {
+        margin: 0;
+        background: #f3f5f8;
+        color: #1f2937;
+    }
+
+    .app {
+        min-height: 100vh;
+    }
+
+    /* شاشة الدخول */
+    #loginScreen {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: linear-gradient(135deg, #111827, #374151);
+    }
+
+    .login-box {
+        width: 100%;
+        max-width: 420px;
+        background: white;
+        border-radius: 18px;
+        padding: 30px;
+        box-shadow: 0 20px 50px rgba(0,0,0,.25);
+    }
+
+    .logo {
+        width: 70px;
+        height: 70px;
+        margin: 0 auto 15px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #111827;
+        color: white;
+        font-size: 30px;
+        font-weight: bold;
+    }
+
+    .login-box h1 {
+        text-align: center;
+        margin: 0 0 8px;
+        font-size: 24px;
+    }
+
+    .login-box p {
+        text-align: center;
+        color: #6b7280;
+        margin-bottom: 25px;
+    }
+
+    label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 7px;
+    }
+
+    input,
+    select,
+    textarea {
+        width: 100%;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 15px;
+        outline: none;
+        background: white;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+        border-color: #374151;
+    }
+
+    textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    button {
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 18px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: bold;
+    }
+
+    .btn-primary {
+        width: 100%;
+        background: #111827;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1f2937;
+    }
+
+    .error {
+        display: none;
+        color: #b91c1c;
+        background: #fee2e2;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        text-align: center;
+    }
+
+    /* التطبيق */
+    #mainApp {
+        display: none;
+    }
+
+    .topbar {
+        background: #111827;
+        color: white;
+        padding: 15px 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .topbar h2 {
+        margin: 0;
+        font-size: 20px;
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .logout {
+        background: #dc2626;
+        color: white;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1200px;
+        margin: auto;
+        padding: 25px 15px 50px;
+    }
+
+    .section {
+        background: white;
+        border-radius: 15px;
+        padding: 22px;
+        margin-bottom: 20px;
+        box-shadow: 0 3px 15px rgba(0,0,0,.06);
+    }
+
+    .section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .section-title h3 {
+        margin: 0;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    .full {
+        grid-column: 1 / -1;
+    }
+
+    .number-box {
+        font-size: 20px;
+        font-weight: bold;
+        text-align: center;
+    }
+
+    .dynamic-list {
+        margin-top: 15px;
+    }
+
+    .transaction-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 12px;
+        background: #fafafa;
+    }
+
+    .transaction-header {
+        font-weight: bold;
+        margin-bottom: 12px;
+    }
+
+    .file-box {
+        border: 1px dashed #9ca3af;
+        padding: 12px;
+        border-radius: 10px;
+        background: white;
+    }
+
+    .misc-row {
+        display: grid;
+        grid-template-columns: 1fr 180px;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .btn-save {
+        background: #16a34a;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #e5e7eb;
+        color: #111827;
+    }
+
+    .btn-danger {
+        background: #dc2626;
+        color: white;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    .status-box {
+        padding: 12px;
+        border-radius: 10px;
+        background: #f0fdf4;
+        color: #166534;
+        margin-bottom: 15px;
+    }
+
+    .footer {
+        text-align: center;
+        color: #9ca3af;
+        font-size: 12px;
+        margin-top: 30px;
+    }
+
+    @media (max-width: 700px) {
+        .grid {
+            grid-template-columns: 1fr;
+        }
+
+        .full {
+            grid-column: auto;
+        }
+
+        .misc-row {
+            grid-template-columns: 1fr;
+        }
+
+        .topbar {
+            align-items: flex-start;
+        }
+
+        .section {
+            padding: 16px;
+        }
+    }
+</style>
+
+</head><body><div class="app"><!-- تسجيل الدخول -->
+<section id="loginScreen">
+
+    <div class="login-box">
+
+        <div class="logo">ص</div>
+
+        <h1>نظام مطابقة الصناديق</h1>
+        <p>تسجيل الدخول إلى النظام</p>
+
+        <div id="loginError" class="error">
+            اسم المستخدم أو كلمة المرور غير صحيحة
+        </div>
+
+        <div class="form-group">
+            <label for="username">اسم المستخدم</label>
+            <input
+                id="username"
+                type="text"
+                placeholder="أدخل اسم المستخدم"
+                autocomplete="username"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="password">كلمة المرور</label>
+            <input
+                id="password"
+                type="password"
+                placeholder="أدخل كلمة المرور"
+                autocomplete="current-password"
+            >
+        </div>
+
+        <button class="btn-primary" onclick="login()">
+            تسجيل الدخول
+        </button>
+
+    </div>
+
+</section>
+
+
+<!-- التطبيق -->
+<section id="mainApp">
+
+    <header class="topbar">
+
+        <h2>نظام مطابقة الصناديق</h2>
+
+        <div class="user-info">
+            <span id="currentUser">المستخدم</span>
+            <button class="logout" onclick="logout()">
+                تسجيل الخروج
+            </button>
+        </div>
+
+    </header>
+
+
+    <main class="container">
+
+        <!-- معلومات التقرير -->
+        <section class="section">
+
+            <div class="section-title">
+                <h3>معلومات التقرير</h3>
+            </div>
+
+            <div class="grid">
+
+                <div class="form-group">
+                    <label>اسم الموظف</label>
+                    <input
+                        id="employeeName"
+                        type="text"
+                        placeholder="اسم الموظف"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>تم تسليم الصندوق إلى</label>
+                    <input
+                        id="handedTo"
+                        type="text"
+                        placeholder="اسم الشخص المستلم"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>وقت بدء الشفت</label>
+                    <input
+                        id="startTime"
+                        type="datetime-local"
+                        readonly
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>وقت الانتهاء</label>
+                    <input
+                        id="endTime"
+                        type="datetime-local"
+                        readonly
+                    >
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- الصندوق -->
+        <section class="section">
+
+            <div class="section-title">
+                <h3>مطابقة الصندوق</h3>
+            </div>
+
+            <div class="grid">
+
+                <div class="form-group">
+                    <label>نقد الصندوق</label>
+                    <input
+                        id="cashAmount"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>التعزيز</label>
+                    <input
+                        id="reinforcement"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                    >
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- المعاملات المباعة -->
+        <section class="section">
+
+            <div class="section-title">
+                <h3>المعاملات المباعة</h3>
+            </div>
+
+            <div class="grid">
+
+                <div class="form-group">
+                    <label>عدد المعاملات المباعة</label>
+                    <input
+                        id="soldCount"
+                        class="number-box"
+                        type="number"
+                        min="0"
+                        value="0"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>مبلغ المعاملات المباعة</label>
+                    <input
+                        id="soldAmount"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                    >
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- المعاملات غير المباعة -->
+        <section class="section">
+
+            <div class="section-title">
+                <h3>المعاملات غير المباعة</h3>
+            </div>
+
+            <div class="grid">
+
+                <div class="form-group">
+                    <label>عدد المعاملات غير المباعة</label>
+                    <input
+                        id="unsoldCount"
+                        class="number-box"
+                        type="number"
+                        min="0"
+                        value="0"
+                        oninput="generateUnsoldTransactions()"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>مبلغ المعاملات غير المباعة</label>
+                    <input
+                        id="unsoldAmount"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                    >
+                </div>
+
+            </div>
+
+            <div id="unsoldList" class="dynamic-list"></div>
+
+        </section>
+
+
+        <!-- المعاملات المتفرقة -->
+        <section class="section">
+
+            <div class="section-title">
+                <h3>المعاملات المتفرقة</h3>
+
+                <button
+                    class="btn-secondary"
+                    onclick="addMiscTransaction()"
+                >
+                    + إضافة معاملة
+                </button>
+            </div>
+
+            <div id="miscList"></div>
+
+        </section>
+
+
+        <!-- الحفظ -->
+        <section class="section">
+
+            <div id="saveStatus" class="status-box hidden"></div>
+
+            <div class="actions">
+
+                <button
+                    class="btn-save"
+                    onclick="saveReport()"
+                >
+                    حفظ المعلومات
+                </button>
+
+                <button
+                    class="btn-secondary"
+                    onclick="clearForm()"
+                >
+                    تفريغ
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <div class="footer">
+            صنع بواسطة غيث
+        </div>
+
+    </main>
+
+</section>
+
+</div><script>
+
+    /*
+     * المرحلة الأولى:
+     * واجهة النظام وتجهيز الحقول.
+     *
+     * تسجيل الدخول وحفظ البيانات في Supabase
+     * سيتم ربطهما في المرحلة التالية.
+     */
+
+
+    let currentUser = null;
+
+
+    // تسجيل الدخول المؤقت للواجهة
+    function login() {
+
+        const username =
+            document.getElementById("username").value.trim();
+
+        const password =
+            document.getElementById("password").value.trim();
+
+        if (!username || !password) {
+
+            showLoginError("يرجى إدخال اسم المستخدم وكلمة المرور");
+
+            return;
+        }
+
+        /*
+         * حاليًا نسمح بالدخول للواجهة فقط.
+         *
+         * في المرحلة التالية سيتم استبدال هذا
+         * بتسجيل الدخول الحقيقي عن طريق Supabase.
+         */
+
+        currentUser = username;
+
+        document.getElementById("loginScreen")
+            .style.display = "none";
+
+        document.getElementById("mainApp")
+            .style.display = "block";
+
+        document.getElementById("currentUser")
+            .textContent = username;
+
+        document.getElementById("employeeName")
+            .value = username;
+
+        setStartTime();
+
+    }
+
+
+    function showLoginError(message) {
+
+        const error =
+            document.getElementById("loginError");
+
+        error.textContent = message;
+        error.style.display = "block";
+
+    }
+
+
+    function logout() {
+
+        currentUser = null;
+
+        document.getElementById("mainApp")
+            .style.display = "none";
+
+        document.getElementById("loginScreen")
+            .style.display = "flex";
+
+        document.getElementById("username").value = "";
+        document.getElementById("password").value = "";
+
+    }
+
+
+    // تسجيل وقت البداية تلقائيًا
+    function setStartTime() {
+
+        const now = new Date();
+
+        document.getElementById("startTime")
+            .value = toDateTimeLocal(now);
+
+    }
+
+
+    // تسجيل وقت النهاية
+    function setEndTime() {
+
+        const now = new Date();
+
+        document.getElementById("endTime")
+            .value = toDateTimeLocal(now);
+
+    }
+
+
+    function toDateTimeLocal(date) {
+
+        const year = date.getFullYear();
+
+        const month =
+            String(date.getMonth() + 1).padStart(2, "0");
+
+        const day =
+            String(date.getDate()).padStart(2, "0");
+
+        const hours =
+            String(date.getHours()).padStart(2, "0");
+
+        const minutes =
+            String(date.getMinutes()).padStart(2, "0");
+
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+
+    }
+
+
+    // إنشاء حقول المعاملات غير المباعة
+    function generateUnsoldTransactions() {
+
+        const count =
+            parseInt(
+                document.getElementById("unsoldCount").value
+            ) || 0;
+
+        const container =
+            document.getElementById("unsoldList");
+
+        container.innerHTML = "";
+
+        for (let i = 1; i <= count; i++) {
+
+            const card =
+                document.createElement("div");
+
+            card.className = "transaction-card";
+
+            card.innerHTML = `
+
+                <div class="transaction-header">
+                    المعاملة غير المباعة رقم ${i}
+                </div>
+
+                <div class="form-group">
+
+                    <label>
+                        اسم الزبون - اختياري
+                    </label>
+
+                    <input
+                        type="text"
+                        class="unsold-name"
+                        placeholder="اسم الزبون"
+                    >
+
+                </div>
+
+                <div class="file-box">
+
+                    <label>
+                        إرفاق سكان / ملف
+                    </label>
+
+                    <input
+                        type="file"
+                        class="unsold-file"
+                        accept="image/*,.pdf"
+                    >
+
+                </div>
+
+            `;
+
+            container.appendChild(card);
+
+        }
+
+    }
+
+
+    // إضافة معاملة متفرقة
+    function addMiscTransaction() {
+
+        const container =
+            document.getElementById("miscList");
+
+        const row =
+            document.createElement("div");
+
+        row.className = "transaction-card";
+
+        row.innerHTML = `
+
+            <div class="transaction-header">
+                معاملة متفرقة
+            </div>
+
+            <div class="form-group">
+
+                <label>
+                    تفاصيل المعاملة
+                </label>
+
+                <textarea
+                    class="misc-details"
+                    placeholder="اكتب تفاصيل المعاملة"
+                ></textarea>        </div>
+
+        <div class="misc-row">
+
+            <div>
+
+                <label>
+                    السكان / الملف
+                </label>
+
+                <input
+                    type="file"
+                    class="misc-file"
+                    accept="image/*,.pdf"
+                >
+
+            </div>
+
+            <div>
+
+                <label>
+                    السعر
+                </label>
+
+                <input
+                    type="number"
+                    class="misc-price"
+                    min="0"
+                    placeholder="0"
+                >
+
+            </div>
+
+        </div>
+
+        <button
+            class="btn-danger"
+            onclick="this.closest('.transaction-card').remove()"
+        >
+            حذف
+        </button>
+
+    `;
+
+    container.appendChild(row);
+
+}
+
+
+// حفظ التقرير
+function saveReport() {
+
+    setEndTime();
+
+    const status =
+        document.getElementById("saveStatus");
+
+    status.textContent =
+        "تم تجهيز التقرير للحفظ. سيتم ربط الحفظ بقاعدة بيانات Supabase في المرحلة التالية.";
+
+    status.classList.remove("hidden");
+
+}
+
+
+// تفريغ النموذج
+function clearForm() {
+
+    if (!confirm("هل تريد تفريغ البيانات؟")) {
+        return;
+    }
+
+    document.getElementById("cashAmount").value = "";
+    document.getElementById("reinforcement").value = "";
+    document.getElementById("soldCount").value = 0;
+    document.getElementById("soldAmount").value = "";
+    document.getElementById("unsoldCount").value = 0;
+    document.getElementById("unsoldAmount").value = "";
+    document.getElementById("handedTo").value = "";
+
+    document.getElementById("unsoldList").innerHTML = "";
+    document.getElementById("miscList").innerHTML = "";
+
+    document.getElementById("saveStatus")
+        .classList.add("hidden");
+
+    setStartTime();
+
+}
+
+</script></body>
+              </html>
